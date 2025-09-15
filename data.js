@@ -11,12 +11,6 @@ export const db = {
       "nome": "Fastshop B2B",
       "ambiente": "prd",
       "url": "https://b2b.fastshop.example.com"
-    },
-    {
-      "id": "duy9z9zc",
-      "nome": "DionisioStore",
-      "ambiente": "ws",
-      "url": "www.store.com"
     }
   ],
   "categorias": {
@@ -26,28 +20,18 @@ export const db = {
         "nome": "Carrinho"
       },
       {
-        "id": "ni339gjl",
-        "nome": "Checkout"
-      },
-      {
         "id": "cat1",
         "nome": "PDP"
       }
     ],
     "loja2": [
       {
-        "id": "cat4",
-        "nome": "Checkout"
-      },
-      {
         "id": "cat3",
         "nome": "Home"
-      }
-    ],
-    "duy9z9zc": [
+      },
       {
-        "id": "1wrdrw3h",
-        "nome": "MINICART"
+        "id": "cat4",
+        "nome": "Checkout"
       }
     ]
   },
@@ -98,36 +82,6 @@ export const db = {
       "categoriaId": "cat4",
       "execucao": "Automatizado",
       "nomeTeste": "Fluxo de checkout com boleto",
-      "evidDesktop": "",
-      "evidMobile": "",
-      "status": ""
-    },
-    {
-      "id": "lt2s95zc",
-      "lojaId": "loja1",
-      "categoriaId": "ni339gjl",
-      "execucao": "Manual",
-      "nomeTeste": "[Checkout] - Validar cartões",
-      "evidDesktop": "",
-      "evidMobile": "",
-      "status": ""
-    },
-    {
-      "id": "b6vfbduf",
-      "lojaId": "duy9z9zc",
-      "categoriaId": "1wrdrw3h",
-      "execucao": "Manual",
-      "nomeTeste": "Validar minicart",
-      "evidDesktop": "",
-      "evidMobile": "",
-      "status": ""
-    },
-    {
-      "id": "rhjb4uds",
-      "lojaId": "duy9z9zc",
-      "categoriaId": "1wrdrw3h",
-      "execucao": "Manual",
-      "nomeTeste": "Validar produtos",
       "evidDesktop": "",
       "evidMobile": "",
       "status": ""

@@ -14,19 +14,33 @@ README.md
 ## Como usar (passo a passo)
 
 1. Abra o `index.html` no navegador (duplo clique ou via servidor estático).
+![Abrindo APP.](/images/open_app.gif "Vídeo abrindo App pelo Live Server")
 
 2. A aba **Planejamento** permite:
    - Selecionar **Loja**.
    - Preencher **Tipo de teste** (apenas informativo, aparece no Markdown), **Tarefa** e **Notas**.
    - Marcar **Categorias** (checkbox). A tabela só aparece quando houver **pelo menos uma categoria** marcada.
+   ![Apresentando cenários por categorias](/images/categories.gif "Vídeo filtrando cenários por categorias")
    - Editar **Evidências (DESKTOP/MOBILE)** e **Status** diretamente na tabela (válidos apenas para exportações; **não** entram no `data.js`).
    - Exportar:
      - **CSV** (delimitado por `;`, UTF-8 com BOM).
      - **Markdown**: inclui cabeçalho com **Nome da loja, Tipo de teste, Tarefa, Qtd. manuais, Qtd. automatizados, Total** e a tabela. A contagem considera **cada cenário = 2** (desktop + mobile).
      - **Excel (.xlsx)** usando **SheetJS**.
+
+   ![Copiando Markdown para JIRA.](/images/markdown.gif "Vídeo Copiando Markdown para JIRA")    
 3. A aba **Gerenciar** permite:
    - Criar/editar/excluir **Lojas** (o nome **não** pode duplicar).
+
+   ![Criando Loja](/images/criandoLoja.gif "Vídeo criando loja e cenários")
+
+   ![Editando Loja](/images/editStore.gif "Vídeo editando loja")
+
+   ![Excluindo Loja](/images/delStore.gif "Vídeo excluindo loja")
    - Criar/remover **Categorias** **por loja** (bloqueio de duplicadas case-insensitive na mesma loja).
+
+   ![Criando Categorias para lojas](/images/createCategory.gif "Vídeo criando categorias")
+
+   ![Removendo categorias](/images/delCategory.gif "Vídeo removendo categoria")
    - **Importar CSV** para a loja selecionada:
      - **Modelo CSV**: `categoria;execucao;nomeTeste;evidDesktop;evidMobile;status`
      - **Pré-visualizar** antes de importar.
