@@ -14,40 +14,55 @@ README.md
 ## Como usar (passo a passo)
 
 1. Abra o `index.html` no navegador (duplo clique ou via servidor estático).
-![Abrindo APP.](/images/open_app.gif "Vídeo abrindo App pelo Live Server")
+    ### Abrindo APP
+    ![Abrindo APP.](/images/open_app.gif "Vídeo abrindo App pelo Live Server")
 
 2. A aba **Planejamento** permite:
    - Selecionar **Loja**.
    - Preencher **Tipo de teste** (apenas informativo, aparece no Markdown), **Tarefa** e **Notas**.
    - Marcar **Categorias** (checkbox). A tabela só aparece quando houver **pelo menos uma categoria** marcada.
-   ![Apresentando cenários por categorias](/images/categories.gif "Vídeo filtrando cenários por categorias")
+    ### Filtrando cenários
+    ![Apresentando cenários por categorias](/images/categories.gif "Vídeo filtrando cenários por categorias")
    - Editar **Evidências (DESKTOP/MOBILE)** e **Status** diretamente na tabela (válidos apenas para exportações; **não** entram no `data.js`).
    - Exportar:
      - **CSV** (delimitado por `;`, UTF-8 com BOM).
      - **Markdown**: inclui cabeçalho com **Nome da loja, Tipo de teste, Tarefa, Qtd. manuais, Qtd. automatizados, Total** e a tabela. A contagem considera **cada cenário = 2** (desktop + mobile).
      - **Excel (.xlsx)** usando **SheetJS**.
+    
+    ### Copiando Markdown
+    ![Copiando Markdown para JIRA.](/images/markdown.gif "Vídeo Copiando Markdown para JIRA")    
 
-   ![Copiando Markdown para JIRA.](/images/markdown.gif "Vídeo Copiando Markdown para JIRA")    
 3. A aba **Gerenciar** permite:
    - Criar/editar/excluir **Lojas** (o nome **não** pode duplicar).
-
-   ![Criando Loja](/images/criandoLoja.gif "Vídeo criando loja e cenários")
-
-   ![Editando Loja](/images/editStore.gif "Vídeo editando loja")
-
-   ![Excluindo Loja](/images/delStore.gif "Vídeo excluindo loja")
+    ### Criando Loja e cenários
+    ![Criando Loja](/images/criandoLoja.gif "Vídeo criando loja e cenários")
+    ### Editando Loja
+    ![Editando Loja](/images/editStore.gif "Vídeo editando loja")
+    ### Excluindo Loja
+    ![Excluindo Loja](/images/delStore.gif "Vídeo excluindo loja")
    - Criar/remover **Categorias** **por loja** (bloqueio de duplicadas case-insensitive na mesma loja).
+    ### Criando categorias
+    ![Criando Categorias para lojas](/images/createCategory.gif "Vídeo criando categorias")
 
-   ![Criando Categorias para lojas](/images/createCategory.gif "Vídeo criando categorias")
-
-   ![Removendo categorias](/images/delCategory.gif "Vídeo removendo categoria")
+    ### Removendo categorias
+    ![Removendo categorias](/images/delCategory.gif "Vídeo removendo categoria")
+   
    - **Importar CSV** para a loja selecionada:
      - **Modelo CSV**: `categoria;execucao;nomeTeste;evidDesktop;evidMobile;status`
+    ### Baixando modelo CSV
+    ![Baixando modelo CSV](/images/downloadModel.gif "Vídeo baixando modelo CSV")
      - **Pré-visualizar** antes de importar.
+     ### Pré-visualizar dados
+    ![Pré-Visualizar arquivo .CSV](/images/preview.gif "Vídeo pre visualizando massa de dados no arquivo CSV")
      - **Importar**: cria automaticamente categorias ausentes e adiciona cenários (somente `execucao` = `Manual` ou `Automatizado`).
+    ### Importando palnilha CSV
+    ![Importando planilha CSV](/images/import.gif "Vídeo importando planilha .CSV")
    - **Exportar JS**: baixa um **`custom-data.js`** (ES Module) com o banco atual. Para integrar ao seu projeto, **substitua seu `data.js` por este arquivo** (ou renomeie `custom-data.js` para `data.js`).
+    ### Exportando massa de dados para ser permanente
+    ![Salvando massa de dados](/images/record.gif "Salvando massa de dados em data.js")
    - **Restaurar dados de exemplo**: reseta o estado para o conteúdo do `data.js` (apenas localStorage). Para efetividade, precisa exportar JS `custom-data.js` e substituir pelo `data.js`.
-
+    ### Resetando App
+    ![Ressetando APP](/images/reset.gif "Vídeo ressetando APP")    
 ## Observações importantes
 - **Tipos de teste** não fazem parte do modelo de dados. É um campo livre em **Planejamento** apenas para o **Markdown**.
 - **Categorias** são **por loja**; a mesma categoria pode existir em lojas diferentes.
