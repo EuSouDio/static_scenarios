@@ -1,0 +1,549 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Planner de Testes - Frontend (CSS puro + criação manual)</title>
+
+  <style>
+    :root{
+      --bg: #f5f7fb;
+      --fg: #0f172a;
+      --muted: #6b7280;
+      --card: #ffffff;
+      --border: #e5e7eb;
+      --primary: #2563eb;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --shadow: 0 1px 2px rgba(0,0,0,.06);
+      --shadow-lg: 0 8px 20px rgba(0,0,0,.08);
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    body{ margin:0; background:var(--bg); color:var(--fg); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; }
+    .container{ max-width: 1200px; margin: 0 auto; padding: 16px; }
+    header{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 20px; }
+    h1{ font-size: clamp(20px, 3.2vw, 32px); margin:0; font-weight:700; }
+    .badge{ display:inline-block; border-radius:999px; padding:4px 10px; font-size:12px; background:#e8f7ec; color:#0a8a3a; }
+    .hidden{ display:none !important; }
+
+    /* Tabs */
+    .tabbar{ display:inline-flex; background:var(--card); border-radius: 16px; padding:4px; box-shadow: var(--shadow); gap:8px; }
+    .tab-btn{ border:0; background:transparent; padding:8px 14px; border-radius: 12px; cursor:pointer; color:var(--fg); }
+    .tab-btn.active{ background: var(--primary); color:#fff; box-shadow: var(--shadow); }
+
+    /* Layout */
+    .grid{ display:grid; grid-template-columns: 1fr; gap:16px; }
+    @media (min-width: 1000px){
+      .grid.cols-4{ grid-template-columns: repeat(4, 1fr); }
+      .grid.cols-2{ grid-template-columns: repeat(2, 1fr); }
+      .grid.cols-3{ grid-template-columns: repeat(3, 1fr); }
+    }
+    .card{ background:var(--card); border:1px solid var(--border); border-radius: var(--radius); padding:16px; box-shadow: var(--shadow); }
+    .label{ display:block; font-size: 13px; font-weight:600; margin-bottom:6px; color:var(--fg); }
+    .input, .textarea, .select{ width:100%; border:1px solid var(--border); border-radius: 12px; padding:10px 12px; font:inherit; background:#fff; color:var(--fg); }
+    .textarea{ min-height: 38px; resize: vertical; }
+    .pill{ display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border); background:#fff; padding:8px 12px; border-radius:12px; }
+    .stack-h{ display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+    .stack-v{ display:flex; gap:10px; flex-direction: column; }
+    .divider{ text-align:center; color:#a1a1aa; letter-spacing:.1em; }
+
+    /* Buttons */
+    .btn{ border-radius: 12px; padding: 8px 14px; border:0; cursor:pointer; background:#eef2f7; color:#111827; box-shadow: var(--shadow); }
+    .btn:hover{ box-shadow: var(--shadow-lg); }
+    .btn:active{ transform: translateY(1px); }
+    .btn-primary{ background: var(--primary); color:#fff; }
+    .btn-danger{ background: var(--danger); color:#fff; }
+    .btn-success{ background: var(--success); color:#fff; }
+
+    /* Table */
+    .table-wrap{ background:var(--card); border:1px solid var(--border); border-radius: var(--radius); padding:16px; box-shadow: var(--shadow); }
+    .scroll{ max-height: 420px; overflow:auto; }
+    table{ width:100%; border-collapse: collapse; font-size: 14px; }
+    th, td{ padding:10px 12px; text-align:left; vertical-align: top; border-top:1px solid var(--border); }
+    thead th{ color:#475569; border-top:0; }
+    .w-64{ width: 256px; }
+    .w-40{ width: 190px; }
+
+    /* Modal */
+    dialog{ border:0; border-radius:16px; width: min(980px, 95vw); box-shadow: var(--shadow-lg); }
+    dialog::backdrop{ background: rgba(0,0,0,.35); }
+    .modal-head{ display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); padding:12px 16px; }
+    .modal-body{ padding:16px; }
+    pre{ background:#f6f7f9; padding:12px; border-radius:12px; font-size:12px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Planner de Testes</h1>
+      <span id="toast" class="badge hidden">Arquivo gerado</span>
+    </header>
+
+    <div style="margin-bottom: 16px;">
+      <div class="tabbar">
+        <button id="tabPlanejamento" class="tab-btn">Planejamento</button>
+        <button id="tabGerenciar" class="tab-btn">Gerenciar</button>
+      </div>
+    </div>
+
+    <!-- Planejamento -->
+    <section id="panePlanejamento" class="stack-v">
+      <div class="grid cols-4">
+        <div class="card">
+          <label class="label">Loja</label>
+          <select id="pl-loja" class="select"></select>
+        </div>
+        <div class="card">
+          <label class="label">Tipo de teste (informativo)</label>
+          <textarea id="pl-tipoTeste" class="textarea" rows="1" placeholder="Ex.: Regressivo"></textarea>
+        </div>
+        <div class="card">
+          <label class="label">Tarefa</label>
+          <textarea id="pl-tarefa" class="textarea" rows="1" placeholder="Ex.: PROJ-123 - Ajustar PDP"></textarea>
+        </div>
+        <div class="card">
+          <label class="label">Notas</label>
+          <textarea id="pl-notas" class="textarea" rows="1"></textarea>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px 0; font-weight:600;">Categorias</h3>
+        <div id="pl-categorias" class="stack-h"></div>
+      </div>
+
+      <div class="stack-h">
+        <button id="btnExportCSV" class="btn">Exportar CSV</button>
+        <button id="btnExportMD" class="btn btn-primary">Exportar Markdown</button>
+        <button id="btnExportXLSX" class="btn">Exportar Excel (.xlsx)</button>
+      </div>
+
+      <div id="pl-tabela-wrap" class="table-wrap hidden">
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Categoria</th>
+                <th>Execução</th>
+                <th>Nome do teste</th>
+                <th>Evidência DESKTOP</th>
+                <th>Evidência MOBILE</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="pl-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <dialog id="mdModal">
+        <div class="modal-head">
+          <h3 style="margin:0; font-weight:600;">Markdown para JIRA</h3>
+          <button id="btnCloseMD" class="btn">Fechar</button>
+        </div>
+        <div class="modal-body">
+          <pre id="mdOutput"></pre>
+          <div class="stack-h" style="margin-top: 8px;">
+            <button id="btnCopyMD" class="btn btn-primary">Copiar</button>
+          </div>
+        </div>
+      </dialog>
+    </section>
+
+    <!-- Gerenciar -->
+    <section id="paneGerenciar" class="stack-v hidden">
+      <div class="grid cols-4">
+        <div class="card">
+          <label class="label">Loja</label>
+          <select id="ge-loja" class="select"></select>
+        </div>
+        <div class="card">
+          <label class="label">Nome da loja</label>
+          <textarea id="ge-nome" class="textarea" rows="1" placeholder="Ex.: Shopclub"></textarea>
+        </div>
+        <div class="card">
+          <label class="label">Ambiente</label>
+          <textarea id="ge-amb" class="textarea" rows="1" placeholder="Ex.: dev / qa / prd"></textarea>
+        </div>
+        <div class="card">
+          <label class="label">URL</label>
+          <textarea id="ge-url" class="textarea" rows="1" placeholder="https://example.com"></textarea>
+        </div>
+      </div>
+
+      <div class="stack-h">
+        <button id="btnNovaLoja" class="btn">+ Nova loja</button>
+        <button id="btnSalvarLoja" class="btn btn-success">Salvar Loja</button>
+        <button id="btnExcluirLoja" class="btn btn-danger">Excluir Loja</button>
+      </div>
+
+      <div class="divider">-----------------------------------</div>
+
+      <div class="grid cols-3">
+        <div class="card">
+          <h3 style="margin:0 0 8px 0; font-weight:600;">Categorias da loja</h3>
+          <div class="stack-h" style="margin-bottom: 8px;">
+            <input id="ge-cat-nome" class="input" placeholder="Ex.: PDP"/>
+            <button id="btnAddCat" class="btn">+ Adicionar</button>
+          </div>
+          <ul id="ge-cat-lista" style="list-style:none; padding:0; margin:0;"></ul>
+        </div>
+
+        <div class="card">
+          <h3 style="margin:0 0 8px 0; font-weight:600;">Criar cenário manual</h3>
+          <div class="stack-v">
+            <div>
+              <label class="label">Categoria</label>
+              <select id="sc-categoria" class="select"></select>
+            </div>
+            <div class="grid cols-2">
+              <div>
+                <label class="label">Execução</label>
+                <select id="sc-execucao" class="select">
+                  <option value="Manual">Manual</option>
+                  <option value="Automatizado">Automatizado</option>
+                </select>
+              </div>
+              <div>
+                <label class="label">Nome do teste</label>
+                <textarea id="sc-nome" class="textarea" rows="1" placeholder="Ex.: Validar preço na PDP"></textarea>
+              </div>
+            </div>
+            <div class="grid cols-2">
+              <div>
+                <label class="label">Evidência DESKTOP</label>
+                <textarea id="sc-ed" class="textarea" rows="1"></textarea>
+              </div>
+              <div>
+                <label class="label">Evidência MOBILE</label>
+                <textarea id="sc-em" class="textarea" rows="1"></textarea>
+              </div>
+            </div>
+            <div>
+              <label class="label">Status</label>
+              <textarea id="sc-status" class="textarea" rows="1"></textarea>
+            </div>
+            <div class="stack-h">
+              <button id="btnAddCenario" class="btn btn-primary">+ Adicionar cenário</button>
+            </div>
+            <small style="color:var(--muted)">Dica: os cenários adicionados aqui entram no Exportar JS e podem ser exportados para CSV/Excel/Markdown no Planejamento.</small>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin:0 0 8px 0; font-weight:600;">Importar loja (CSV)</h3>
+          <p style="margin:0 0 8px 0; font-size:12px; color:var(--muted)">Selecione a loja, depois importe cenários para ela.</p>
+          <div class="stack-h" style="margin-bottom: 8px;">
+            <button id="btnModeloCSV" class="btn">Baixar Modelo CSV</button>
+          </div>
+          <div class="stack-v">
+            <input id="csvFile" type="file" accept=".csv" class="input"/>
+            <div class="stack-h">
+              <button id="btnPreviewCSV" class="btn">Pré-visualizar</button>
+              <button id="btnImportCSV" class="btn btn-primary">Importar</button>
+            </div>
+          </div>
+          <div id="csvPreviewWrap" class="hidden" style="margin-top:12px;">
+            <h4 style="margin:0 0 6px 0; font-weight:600; font-size: 14px;">Pré-visualização</h4>
+            <div class="table-wrap">
+              <div class="scroll">
+                <table>
+                  <thead><tr id="csvPrevHead"></tr></thead>
+                  <tbody id="csvPrevBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px 0; font-weight:600;">Cenários desta loja</h3>
+        <div class="table-wrap">
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Categoria</th>
+                  <th>Execução</th>
+                  <th>Nome do teste</th>
+                  <th>Evidência DESKTOP</th>
+                  <th>Evidência MOBILE</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="ge-cenarios-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider">------------------------------------</div>
+
+      <div class="stack-h">
+        <button id="btnExportJS" class="btn btn-primary">Exportar JS</button>
+        <button id="btnResetDemo" class="btn">Restaurar dados de exemplo</button>
+      </div>
+    </section>
+  </div>
+
+  <script type="module">
+  (async function(){
+    // --- Data bootstrap ---
+    var initialDBFallback = {
+      lojas: [
+        { id: "loja1", nome: "Shopclub", ambiente: "qa", url: "https://shopclub.example.com" },
+        { id: "loja2", nome: "Fastshop B2B", ambiente: "prd", url: "https://b2b.fastshop.example.com" }
+      ],
+      categorias: {
+        "loja1": [ { id: "cat1", nome: "PDP" }, { id: "cat2", nome: "Carrinho" } ],
+        "loja2": [ { id: "cat3", nome: "Home" }, { id: "cat4", nome: "Checkout" } ]
+      },
+      cenarios: [
+        { id: "c1", lojaId: "loja1", categoriaId: "cat1", execucao: "Manual",       nomeTeste: "Validar preço na PDP", evidDesktop: "", evidMobile: "", status: "" },
+        { id: "c2", lojaId: "loja1", categoriaId: "cat1", execucao: "Automatizado", nomeTeste: "Verificar imagens na PDP", evidDesktop: "", evidMobile: "", status: "" },
+        { id: "c3", lojaId: "loja1", categoriaId: "cat2", execucao: "Manual",       nomeTeste: "Adicionar item ao carrinho", evidDesktop: "", evidMobile: "", status: "" },
+        { id: "c4", lojaId: "loja2", categoriaId: "cat3", execucao: "Manual",       nomeTeste: "Abrir Home e validar banners", evidDesktop: "", evidMobile: "", status: "" },
+        { id: "c5", lojaId: "loja2", categoriaId: "cat4", execucao: "Automatizado", nomeTeste: "Fluxo de checkout com boleto", evidDesktop: "", evidMobile: "", status: "" }
+      ]
+    };
+    var initialDB = initialDBFallback;
+    try { var mod = await import('./data.js'); if(mod && mod.db){ initialDB = mod.db; } } catch(e){ console.warn('Falha ao importar ./data.js. Usando dados embutidos.', e); }
+
+    // --- State & helpers ---
+    var STORAGE_KEY = 'planner-db-v1';
+    function deepClone(obj){ try { return JSON.parse(JSON.stringify(obj)); } catch(e){ return obj; } }
+    var db = loadDB();
+    function loadDB(){ try{ var raw=localStorage.getItem(STORAGE_KEY); if(raw){ return JSON.parse(raw); } }catch(e){} return deepClone(initialDB); }
+    function saveDB(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }catch(e){} }
+    function uid(){ return Math.random().toString(36).slice(2, 10); }
+    function showToast(msg){ var t=document.getElementById('toast'); t.textContent=msg||'Ok'; t.classList.remove('hidden'); setTimeout(function(){ t.classList.add('hidden'); }, 2000); }
+    function normalize(s){ return (s||'').replace(/^\s+|\s+$/g,'').toLowerCase(); }
+
+    // Tabs
+    var tabPlanejamento=document.getElementById('tabPlanejamento');
+    var tabGerenciar=document.getElementById('tabGerenciar');
+    var panePlanejamento=document.getElementById('panePlanejamento');
+    var paneGerenciar=document.getElementById('paneGerenciar');
+    function switchTab(which){
+      if(which==='pl'){ panePlanejamento.classList.remove('hidden'); paneGerenciar.classList.add('hidden'); tabPlanejamento.classList.add('active'); tabGerenciar.classList.remove('active'); }
+      else { paneGerenciar.classList.remove('hidden'); panePlanejamento.classList.add('hidden'); tabGerenciar.classList.add('active'); tabPlanejamento.classList.remove('active'); }
+    }
+    tabPlanejamento.addEventListener('click', function(){ switchTab('pl'); });
+    tabGerenciar.addEventListener('click', function(){ switchTab('ge'); });
+    switchTab('pl');
+
+    // Elements
+    var plLoja=document.getElementById('pl-loja');
+    var plTipoTeste=document.getElementById('pl-tipoTeste');
+    var plTarefa=document.getElementById('pl-tarefa');
+    var plCategorias=document.getElementById('pl-categorias');
+    var plTabelaWrap=document.getElementById('pl-tabela-wrap');
+    var plTbody=document.getElementById('pl-tbody');
+
+    var geLoja=document.getElementById('ge-loja');
+    var geNome=document.getElementById('ge-nome');
+    var geAmb=document.getElementById('ge-amb');
+    var geUrl=document.getElementById('ge-url');
+    var geCatNome=document.getElementById('ge-cat-nome');
+    var geCatLista=document.getElementById('ge-cat-lista');
+
+    var scCategoria=document.getElementById('sc-categoria');
+    var scExecucao=document.getElementById('sc-execucao');
+    var scNome=document.getElementById('sc-nome');
+    var scED=document.getElementById('sc-ed');
+    var scEM=document.getElementById('sc-em');
+    var scStatus=document.getElementById('sc-status');
+    var geCenariosBody=document.getElementById('ge-cenarios-body');
+
+    function findLojaById(id){ for(var i=0;i<db.lojas.length;i++){ if(db.lojas[i].id===id) return db.lojas[i]; } return null; }
+
+    function refreshLojasSelect(){
+      var sels=[plLoja, geLoja];
+      for (var s=0;s<sels.length;s++){
+        var sel=sels[s], cur=sel.value; sel.innerHTML='';
+        for (var i=0;i<db.lojas.length;i++){ var l=db.lojas[i]; var opt=document.createElement('option'); opt.value=l.id; opt.textContent=l.nome; sel.appendChild(opt); }
+        if(db.lojas.length && !findLojaById(cur)){ sel.value=db.lojas[0]?db.lojas[0].id:''; }
+        else { sel.value=cur || (db.lojas[0]?db.lojas[0].id:''); }
+      }
+      refreshGerenciarFields(); refreshCategoriasCheckboxes(); renderTabelaPlanejamento();
+      refreshCategoriaSelectForScenario(); renderCenariosList();
+    }
+
+    // CRUD loja
+    document.getElementById('btnNovaLoja').addEventListener('click', function(){ geNome.value=''; geAmb.value=''; geUrl.value=''; geLoja.value=''; geNome.focus(); });
+    document.getElementById('btnSalvarLoja').addEventListener('click', function(){
+      var nome=geNome.value.replace(/^\s+|\s+$/g,''); if(!nome){ alert('Informe o nome da loja.'); return; }
+      var exists=null; for (var i=0;i<db.lojas.length;i++){ if(normalize(db.lojas[i].nome)===normalize(nome)){ exists=db.lojas[i]; break; } }
+      var editingId=geLoja.value||null;
+      if(!editingId){
+        if(exists){ alert('Já existe uma loja com este nome.'); return; }
+        var id=uid(); db.lojas.push({id:id, nome:nome, ambiente: geAmb.value.replace(/^\s+|\s+$/g,''), url: geUrl.value.replace(/^\s+|\s+$/g,'')});
+        if(!db.categorias[id]) db.categorias[id]=[]; saveDB(); refreshLojasSelect(); geLoja.value=id; showToast('Loja criada');
+      } else {
+        var loja=findLojaById(editingId); if(!loja){ alert('Loja não encontrada'); return; }
+        if(exists && exists.id!==editingId){ alert('Já existe uma loja com este nome.'); return; }
+        loja.nome=nome; loja.ambiente=geAmb.value.replace(/^\s+|\s+$/g,''); loja.url=geUrl.value.replace(/^\s+|\s+$/g,''); saveDB(); refreshLojasSelect(); showToast('Loja salva');
+      }
+    });
+    document.getElementById('btnExcluirLoja').addEventListener('click', function(){
+      var id=geLoja.value; if(!id){ alert('Selecione uma loja'); return; }
+      if(!confirm('Excluir loja e todos os dados relacionados?')) return;
+      var novas=[]; for (var i=0;i<db.lojas.length;i++){ if(db.lojas[i].id!==id) novas.push(db.lojas[i]); } db.lojas=novas;
+      delete db.categorias[id];
+      var novosC=[]; for (var j=0;j<db.cenarios.length;j++){ if(db.cenarios[j].lojaId!==id) novosC.push(db.cenarios[j]); } db.cenarios=novosC;
+      saveDB(); refreshLojasSelect(); showToast('Loja excluída');
+    });
+    geLoja.addEventListener('change', function(){ refreshGerenciarFields(); refreshCategoriasList(); refreshCategoriaSelectForScenario(); renderCenariosList(); });
+
+    function refreshGerenciarFields(){
+      var loja=findLojaById(geLoja.value); geNome.value=loja?loja.nome:''; geAmb.value=loja?loja.ambiente:''; geUrl.value=loja?loja.url:''; refreshCategoriasList();
+    }
+
+    // Categorias
+    function refreshCategoriasList(){
+      geCatLista.innerHTML=''; var lojaId=geLoja.value; var list=db.categorias[lojaId]||[]; list.sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}); });
+      for (var i=0;i<list.length;i++){
+        (function(cat){
+          var li=document.createElement('li'); li.style.display='flex'; li.style.alignItems='center'; li.style.justifyContent='space-between'; li.style.background='#f7f7fb'; li.style.border='1px solid var(--border)'; li.style.borderRadius='12px'; li.style.padding='8px 12px'; li.style.margin='4px 0';
+          var span=document.createElement('span'); span.textContent=cat.nome;
+          var btn=document.createElement('button'); btn.className='btn'; btn.style.background='#fee2e2'; btn.style.color='#991b1b'; btn.textContent='remover';
+          li.appendChild(span); li.appendChild(btn); geCatLista.appendChild(li);
+          btn.addEventListener('click', function(){
+            if(!confirm('Remover categoria?')) return;
+            var arr=db.categorias[lojaId]||[]; var novo=[]; for (var k=0;k<arr.length;k++){ if(arr[k].id!==cat.id) novo.push(arr[k]); } db.categorias[lojaId]=novo;
+            var novosC=[]; for (var m=0;m<db.cenarios.length;m++){ var cc=db.cenarios[m]; if(!(cc.lojaId===lojaId && cc.categoriaId===cat.id)) novosC.push(cc); } db.cenarios=novosC;
+            saveDB(); refreshCategoriasList(); refreshCategoriasCheckboxes(); refreshCategoriaSelectForScenario(); renderCenariosList(); showToast('Categoria removida');
+          });
+        })(list[i]);
+      }
+    }
+    document.getElementById('btnAddCat').addEventListener('click', function(){
+      var lojaId=geLoja.value; if(!lojaId){ alert('Selecione a loja.'); return; }
+      var nome=document.getElementById('ge-cat-nome').value.replace(/^\s+|\s+$/g,''); if(!nome){ alert('Informe o nome da categoria.'); return; }
+      var list=db.categorias[lojaId]=db.categorias[lojaId]||[]; for (var i=0;i<list.length;i++){ if(normalize(list[i].nome)===normalize(nome)){ alert('Categoria já existe nesta loja.'); return; } }
+      var id=uid(); list.push({id:id, nome:nome}); saveDB(); document.getElementById('ge-cat-nome').value=''; refreshCategoriasList(); refreshCategoriasCheckboxes(); refreshCategoriaSelectForScenario(); showToast('Categoria adicionada');
+    });
+
+    function refreshCategoriaSelectForScenario(){
+      var lojaId=geLoja.value; var list=db.categorias[lojaId]||[]; scCategoria.innerHTML='';
+      for (var i=0;i<list.length;i++){ var opt=document.createElement('option'); opt.value=list[i].id; opt.textContent=list[i].nome; scCategoria.appendChild(opt); }
+    }
+
+    // Criar cenário manual
+    document.getElementById('btnAddCenario').addEventListener('click', function(){
+      var lojaId=geLoja.value; if(!lojaId){ alert('Selecione a loja.'); return; }
+      var categoriaId=scCategoria.value; if(!categoriaId){ alert('Crie ao menos uma categoria antes.'); return; }
+      var exec=scExecucao.value; var nome=scNome.value.replace(/^\s+|\s+$/g,''); if(!nome){ alert('Informe o nome do teste.'); return; }
+      db.cenarios.push({ id: uid(), lojaId: lojaId, categoriaId: categoriaId, execucao: exec, nomeTeste: nome, evidDesktop: scED.value||'', evidMobile: scEM.value||'', status: scStatus.value||'' });
+      saveDB(); renderCenariosList(); renderTabelaPlanejamento(); showToast('Cenário adicionado');
+      scNome.value=''; scED.value=''; scEM.value=''; scStatus.value='';
+    });
+
+    // Listagem/remover cenários da loja
+    function renderCenariosList(){
+      geCenariosBody.innerHTML=''; var lojaId=geLoja.value; if(!lojaId) return;
+      var cats=db.categorias[lojaId]||[]; var catsById={}; for (var i=0;i<cats.length;i++){ catsById[cats[i].id]=cats[i]; }
+      var rows=[]; for (var j=0;j<db.cenarios.length;j++){ var c=db.cenarios[j]; if(c.lojaId===lojaId) rows.push(c); }
+      rows.sort(function(a,b){
+        var ca=catsById[a.categoriaId]?catsById[a.categoriaId].nome:''; var cb=catsById[b.categoriaId]?catsById[b.categoriaId].nome:'';
+        var catCmp=ca.localeCompare(cb,'pt-BR',{sensitivity:'base'}); if(catCmp!==0) return catCmp;
+        var ord=function(x){ return x.execucao==='Manual'?0:1; }; var oCmp=ord(a)-ord(b); if(oCmp!==0) return oCmp;
+        var na=a.nomeTeste||''; var nb=b.nomeTeste||''; return na.localeCompare(nb,'pt-BR',{sensitivity:'base'});
+      });
+      for (var r=0;r<rows.length;r++){
+        (function(row){
+          var tr=document.createElement('tr');
+          function td(text){ var el=document.createElement('td'); el.textContent=text; return el; }
+          var catNome=catsById[row.categoriaId]?catsById[row.categoriaId].nome:'';
+          tr.appendChild(td(catNome)); tr.appendChild(td(row.execucao)); tr.appendChild(td(row.nomeTeste||'')); tr.appendChild(td(row.evidDesktop||'')); tr.appendChild(td(row.evidMobile||'')); tr.appendChild(td(row.status||''));
+          var tdA=document.createElement('td'); var rm=document.createElement('button'); rm.className='btn'; rm.style.background='#fee2e2'; rm.style.color='#991b1b'; rm.textContent='remover'; tdA.appendChild(rm); tr.appendChild(tdA);
+          rm.addEventListener('click', function(){
+            if(!confirm('Excluir este cenário?')) return;
+            var novo=[]; for (var i=0;i<db.cenarios.length;i++){ if(db.cenarios[i].id!==row.id) novo.push(db.cenarios[i]); } db.cenarios=novo; saveDB(); renderCenariosList(); renderTabelaPlanejamento(); showToast('Cenário removido');
+          });
+          geCenariosBody.appendChild(tr);
+        })(rows[r]);
+      }
+    }
+
+    // Planejamento: categorias checkboxes & table
+    function refreshCategoriasCheckboxes(){
+      plCategorias.innerHTML=''; var lojaId=plLoja.value; var list=db.categorias[lojaId]||[]; list.sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}); });
+      for (var i=0;i<list.length;i++){
+        (function(cat){
+          var label=document.createElement('label'); label.className='pill';
+          var input=document.createElement('input'); input.type='checkbox'; input.value=cat.id;
+          var span=document.createElement('span'); span.textContent=cat.nome;
+          label.appendChild(input); label.appendChild(span); plCategorias.appendChild(label);
+          input.addEventListener('change', renderTabelaPlanejamento);
+        })(list[i]);
+      }
+    }
+    plLoja.addEventListener('change', function(){ refreshCategoriasCheckboxes(); renderTabelaPlanejamento(); });
+
+    function getSelectedCategoriaIds(){ var checked=plCategorias.querySelectorAll('input[type=checkbox]:checked'); var ids=[]; for (var i=0;i<checked.length;i++){ ids.push(checked[i].value); } return ids; }
+
+    function renderTabelaPlanejamento(){
+      var lojaId=plLoja.value; var selectedCats=getSelectedCategoriaIds();
+      if(!lojaId || selectedCats.length===0){ plTabelaWrap.classList.add('hidden'); plTbody.innerHTML=''; return; }
+      var listCats=db.categorias[lojaId]||[]; var catsById={}; for (var i=0;i<listCats.length;i++){ catsById[listCats[i].id]=listCats[i]; }
+      var rows=[]; for (var j=0;j<db.cenarios.length;j++){ var c=db.cenarios[j]; if(c.lojaId===lojaId){ for (var k=0;k<selectedCats.length;k++){ if(c.categoriaId===selectedCats[k]){ rows.push(c); break; } } } }
+      rows.sort(function(a,b){
+        var ca=catsById[a.categoriaId]?catsById[a.categoriaId].nome:''; var cb=catsById[b.categoriaId]?catsById[b.categoriaId].nome:'';
+        var catCmp=ca.localeCompare(cb,'pt-BR',{sensitivity:'base'}); if(catCmp!==0) return catCmp;
+        var ord=function(x){ return x.execucao==='Manual'?0:1; }; var oCmp=ord(a)-ord(b); if(oCmp!==0) return oCmp;
+        var na=a.nomeTeste||''; var nb=b.nomeTeste||''; return na.localeCompare(nb,'pt-BR',{sensitivity:'base'});
+      });
+      plTbody.innerHTML='';
+      for (var r=0;r<rows.length;r++){
+        (function(row){
+          var tr=document.createElement('tr');
+          var tdCat=document.createElement('td'); tdCat.textContent=catsById[row.categoriaId]?catsById[row.categoriaId].nome:''; tr.appendChild(tdCat);
+          var tdExec=document.createElement('td'); tdExec.textContent=row.execucao; tr.appendChild(tdExec);
+          var tdNome=document.createElement('td'); tdNome.textContent=row.nomeTeste||''; tr.appendChild(tdNome);
+          var tdED=document.createElement('td'); var taED=document.createElement('textarea'); taED.className='textarea w-64'; taED.rows=1; taED.value=row.evidDesktop||''; tdED.appendChild(taED); tr.appendChild(tdED);
+          var tdEM=document.createElement('td'); var taEM=document.createElement('textarea'); taEM.className='textarea w-64'; taEM.rows=1; taEM.value=row.evidMobile||''; tdEM.appendChild(taEM); tr.appendChild(tdEM);
+          var tdSt=document.createElement('td'); var taSt=document.createElement('textarea'); taSt.className='textarea w-40'; taSt.rows=1; taSt.value=row.status||''; tdSt.appendChild(taSt); tr.appendChild(tdSt);
+          taED.addEventListener('input', function(e){ row._ed=e.target.value; }); taEM.addEventListener('input', function(e){ row._em=e.target.value; }); taSt.addEventListener('input', function(e){ row._st=e.target.value; });
+          plTbody.appendChild(tr);
+        })(rows[r]);
+      }
+      plTabelaWrap.classList.remove('hidden');
+    }
+
+    // Export/Markdown handlers (reutiliza funções da versão anterior)
+    function getDisplayedRows(){ var lojaId=plLoja.value; var selectedCats=getSelectedCategoriaIds(); var listCats=db.categorias[lojaId]||[]; var catsById={}; for (var i=0;i<listCats.length;i++){ catsById[listCats[i].id]=listCats[i]; } var out=[]; for (var j=0;j<db.cenarios.length;j++){ var c=db.cenarios[j]; var inSel=false; if(c.lojaId===lojaId){ for (var k=0;k<selectedCats.length;k++){ if(c.categoriaId===selectedCats[k]){ inSel=true; break; } } } if(inSel){ out.push({ categoria: catsById[c.categoriaId]?catsById[c.categoriaId].nome:'', execucao: c.execucao, nomeTeste: c.nomeTeste||'', evidDesktop: (typeof c._ed!=='undefined'?c._ed:(c.evidDesktop||'')), evidMobile: (typeof c._em!=='undefined'?c._em:(c.evidMobile||'')), status: (typeof c._st!=='undefined'?c._st:(c.status||'')) }); } } return out; }
+    function exportCSV(){ var rows=getDisplayedRows(); if(rows.length===0){ alert('Nenhum cenário para exportar.'); return; } var header=['categoria','execucao','nomeTeste','evidDesktop','evidMobile','status']; var sep=';'; function esc(v){ var s=(v==null?'':String(v)).replace(/\r?\n/g,' '); if(s.indexOf(sep)>=0 || s.indexOf('"')>=0){ return '"'+s.replace(/"/g,'""')+'"'; } return s; } var out=[header.join(sep)]; for(var i=0;i<rows.length;i++){ var r=rows[i], arr=[]; for(var h=0;h<header.length;h++){ arr.push(esc(r[header[h]])); } out.push(arr.join(sep)); } var blob=new Blob(['\ufeff'+out.join('\r\n')],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='cenarios.csv'; a.click(); }
+    function exportXLSX(){ var rows=getDisplayedRows(); if(rows.length===0){ alert('Nenhum cenário para exportar.'); return; } var wsData=[['Categoria','Execução','Nome do teste','Evidência DESKTOP','Evidência MOBILE','Status']]; for(var i=0;i<rows.length;i++){ var r=rows[i]; wsData.push([r.categoria,r.execucao,r.nomeTeste,r.evidDesktop,r.evidMobile,r.status]); } var wb=XLSX.utils.book_new(); var ws=XLSX.utils.aoa_to_sheet(wsData); XLSX.utils.book_append_sheet(wb,ws,'Cenarios'); XLSX.writeFile(wb,'cenarios.xlsx'); }
+    function exportMarkdown(){ var loja=findLojaById(plLoja.value); var lojaNome=loja?loja.nome:''; var tipoTeste=(plTipoTeste.value||'').replace(/^\s+|\s+$/g,''); var tarefa=(plTarefa.value||'').replace(/^\s+|\s+$/g,''); var rows=getDisplayedRows(); if(rows.length===0){ alert('Nenhum cenário para exportar.'); return; } var man=0, aut=0; for(var i=0;i<rows.length;i++){ if(rows[i].execucao==='Manual') man++; else if(rows[i].execucao==='Automatizado') aut++; } man*=2; aut*=2; var total=man+aut; function esc(s){ return String(s==null?'':s).replace(/\|/g,'\\|'); } var headerInfo='**Nome da loja:** '+esc(lojaNome)+'\n'+'**Tipo de teste:** '+esc(tipoTeste)+'\n'+'**Tarefa:** '+esc(tarefa)+'\n'+'**Qtd. manuais:** '+man+'\n'+'**Qtd. automatizados:** '+aut+'\n'+'**Total de testes:** '+total; var head='| Categoria | Execução | Nome do teste | Evidência DESKTOP | Evidência MOBILE | Status |\n|---|---|---|---|---|---|'; var body=[]; for(var j=0;j<rows.length;j++){ var r=rows[j]; body.push('| '+esc(r.categoria)+' | '+esc(r.execucao)+' | '+esc(r.nomeTeste)+' | '+esc(r.evidDesktop)+' | '+esc(r.evidMobile)+' | '+esc(r.status)+' |'); } var md=headerInfo+'\n\n'+head+'\n'+body.join('\n'); var dlg=document.getElementById('mdModal'); var out=document.getElementById('mdOutput'); out.textContent=md; if(dlg.showModal){ dlg.showModal(); } }
+    document.getElementById('btnExportCSV').addEventListener('click', exportCSV); document.getElementById('btnExportXLSX').addEventListener('click', exportXLSX); document.getElementById('btnExportMD').addEventListener('click', exportMarkdown); document.getElementById('btnCloseMD').addEventListener('click', function(){ var dlg=document.getElementById('mdModal'); if(dlg && dlg.close) dlg.close(); }); document.getElementById('btnCopyMD').addEventListener('click', function(){ var md=document.getElementById('mdOutput').textContent; if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(md).then(function(){ showToast('Markdown copiado'); }); } });
+
+    // Modelo CSV / Preview / Import idem versão anterior
+    document.getElementById('btnModeloCSV').addEventListener('click', function(){ var header='categoria;execucao;nomeTeste;evidDesktop;evidMobile;status\r\n'; var example='PDP;Manual;Abrir PDP e validar preço;;;\r\n'; var blob=new Blob(['\ufeff'+header+example],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='modelo_loja.csv'; a.click(); });
+    var _csvRows=null;
+    document.getElementById('btnPreviewCSV').addEventListener('click', function(){ var file=document.getElementById('csvFile').files && document.getElementById('csvFile').files[0]; if(!file){ alert('Escolha um arquivo CSV.'); return; } var reader=new FileReader(); reader.onload=function(evt){ var text=String(evt.target.result||''); var lines=text.split(/\r?\n/).filter(function(v){return v;}); if(lines.length===0){ alert('CSV vazio.'); return; } var header=lines[0].split(';'); for(var h=0;h<header.length;h++){ header[h]=header[h].replace(/^\s+|\s+$/g,''); } var body=[]; for(var i=1;i<lines.length;i++){ var cols=lines[i].split(';'); var obj={}; for(var j=0;j<header.length;j++){ obj[header[j]]=(cols[j]||'').replace(/^\s+|\s+$/g,''); } body.push(obj); } _csvRows={header:header, body:body}; var headTr=document.getElementById('csvPrevHead'); var bodyT=document.getElementById('csvPrevBody'); var htmlH=[]; for(var a=0;a<header.length;a++){ htmlH.push('<th>'+header[a]+'</th>'); } headTr.innerHTML=htmlH.join(''); var htmlB=[]; var preview=body.slice(0,50); for(var b=0;b<preview.length;b++){ var r=preview[b]; var tds=[]; for(var c=0;c<header.length;c++){ var hh=header[c]; tds.push('<td>'+(r[hh]||'')+'</td>'); } htmlB.push('<tr>'+tds.join('')+'</tr>'); } bodyT.innerHTML=htmlB.join(''); document.getElementById('csvPreviewWrap').classList.remove('hidden'); }; reader.readAsText(file); });
+    document.getElementById('btnImportCSV').addEventListener('click', function(){ var lojaId=geLoja.value; if(!lojaId){ alert('Selecione a loja para importar.'); return; } if(!_csvRows){ alert('Faça a pré-visualização primeiro.'); return; } var header=_csvRows.header; var body=_csvRows.body; var required=['categoria','execucao','nomeTeste','evidDesktop','evidMobile','status']; var missing=[]; for(var i=0;i<required.length;i++){ if(header.indexOf(required[i])<0) missing.push(required[i]); } if(missing.length){ alert('Cabeçalhos ausentes: '+missing.join(', ')); return; } var list=db.categorias[lojaId]=db.categorias[lojaId]||[]; var catByNorm={}; for(var i=0;i<list.length;i++){ catByNorm[normalize(list[i].nome)]=list[i]; } var created=0, imported=0; for(var r=0;r<body.length;r++){ var row=body[r]; if(!row.categoria||!row.execucao||!row.nomeTeste) continue; var norm=normalize(row.categoria); var cat=catByNorm[norm]; if(!cat){ cat={ id:uid(), nome: row.categoria.replace(/^\s+|\s+$/g,'') }; list.push(cat); catByNorm[norm]=cat; created++; } var execVal=(row.execucao||'').replace(/^\s+|\s+$/g,''); if(execVal!=='Manual' && execVal!=='Automatizado') continue; db.cenarios.push({ id:uid(), lojaId: lojaId, categoriaId: cat.id, execucao: execVal, nomeTeste: row.nomeTeste||'', evidDesktop: row.evidDesktop||'', evidMobile: row.evidMobile||'', status: row.status||'' }); imported++; } saveDB(); refreshCategoriasList(); refreshCategoriaSelectForScenario(); renderCenariosList(); refreshCategoriasCheckboxes(); renderTabelaPlanejamento(); showToast('Importado: '+imported+', Categorias novas: '+created); });
+
+    // Export JS
+    document.getElementById('btnExportJS').addEventListener('click', function(){ var payload={ lojas:db.lojas, categorias:db.categorias, cenarios:db.cenarios.map(function(c){ return { id:c.id, lojaId:c.lojaId, categoriaId:c.categoriaId, execucao:c.execucao, nomeTeste:c.nomeTeste||'', evidDesktop:c.evidDesktop||'', evidMobile:c.evidMobile||'', status:c.status||'' }; }) }; var content='export const db = '+JSON.stringify(payload,null,2)+';\n'; var blob=new Blob([content],{type:'text/javascript;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='custom-data.js'; a.click(); showToast('Arquivo gerado: custom-data.js — substitua por data.js na sua estrutura'); });
+
+    // Reset demo
+    document.getElementById('btnResetDemo').addEventListener('click', function(){
+  if(!confirm('Restaurar dados de exemplo? Isso substituirá o estado atual (localStorage).')) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+  db = deepClone(initialDBFallback); // sempre volta para os dados embutidos de exemplo
+  saveDB();
+  refreshLojasSelect();
+  showToast('Dados de EXEMPLO restaurados');
+});
+
+    // Init
+    refreshLojasSelect();
+  })();
+  </script>
+</body>
+</html>
