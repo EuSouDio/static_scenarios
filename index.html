@@ -1,10 +1,12 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Planner de Testes - Estático</title>
+
+  <!-- Adicionado: SheetJS para exportar Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
     :root{
@@ -85,6 +87,8 @@
       <div class="tabbar">
         <button id="tabPlanejamento" class="tab-btn">Planejamento</button>
         <button id="tabGerenciar" class="tab-btn">Gerenciar</button>
+        <!-- Nova aba de análise/dashboard -->
+        <button id="tabAnalise" class="tab-btn">Análise</button>
       </div>
     </div>
 
@@ -288,6 +292,57 @@
         <button id="btnResetDemo" class="btn">Restaurar dados de exemplo</button>
       </div>
     </section>
+
+    <!-- Análise / Dashboard -->
+    <section id="paneAnalise" class="stack-v hidden">
+      <div class="grid cols-4">
+        <div class="card">
+          <label class="label">Loja (para análise)</label>
+          <select id="da-loja" class="select"></select>
+          <small style="color:var(--muted)">Dica: escolha "Todas as lojas" para visão geral.</small>
+        </div>
+        <div class="card">
+          <div class="stack-v">
+            <div class="label">Cenários Manuais (x2)</div>
+            <div style="font-size:28px; font-weight:800;"><span id="da-manual">0</span></div>
+            <small style="color:var(--muted)">Multiplicado por Desktop + Mobile</small>
+          </div>
+        </div>
+        <div class="card">
+          <div class="stack-v">
+            <div class="label">Cenários Automatizados (x2)</div>
+            <div style="font-size:28px; font-weight:800;"><span id="da-auto">0</span></div>
+            <small style="color:var(--muted)">Multiplicado por Desktop + Mobile</small>
+          </div>
+        </div>
+        <div class="card">
+          <div class="stack-v">
+            <div class="label">Total (x2)</div>
+            <div style="font-size:28px; font-weight:800;"><span id="da-total">0</span></div>
+            <small style="color:var(--muted)">Soma de manuais + automatizados</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px 0; font-weight:600;">Distribuição por loja (x2)</h3>
+        <div class="table-wrap">
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Loja</th>
+                  <th>Manuais</th>
+                  <th>Automatizados</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="da-por-loja"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 
   <script type="module">
@@ -326,17 +381,24 @@
     // Tabs
     var tabPlanejamento=document.getElementById('tabPlanejamento');
     var tabGerenciar=document.getElementById('tabGerenciar');
+    var tabAnalise=document.getElementById('tabAnalise');
     var panePlanejamento=document.getElementById('panePlanejamento');
     var paneGerenciar=document.getElementById('paneGerenciar');
+    var paneAnalise=document.getElementById('paneAnalise');
     function switchTab(which){
-      if(which==='pl'){ panePlanejamento.classList.remove('hidden'); paneGerenciar.classList.add('hidden'); tabPlanejamento.classList.add('active'); tabGerenciar.classList.remove('active'); }
-      else { paneGerenciar.classList.remove('hidden'); panePlanejamento.classList.add('hidden'); tabGerenciar.classList.add('active'); tabPlanejamento.classList.remove('active'); }
+      var panes = { pl: panePlanejamento, ge: paneGerenciar, da: paneAnalise };
+      var tabs  = { pl: tabPlanejamento,  ge: tabGerenciar,  da: tabAnalise };
+      ['pl','ge','da'].forEach(function(key){
+        if(which===key){ panes[key].classList.remove('hidden'); tabs[key].classList.add('active'); }
+        else { panes[key].classList.add('hidden'); tabs[key].classList.remove('active'); }
+      });
     }
     tabPlanejamento.addEventListener('click', function(){ switchTab('pl'); });
     tabGerenciar.addEventListener('click', function(){ switchTab('ge'); });
+    tabAnalise.addEventListener('click', function(){ switchTab('da'); });
     switchTab('pl');
 
-    // Elements
+    // Elements - Planejamento
     var plLoja=document.getElementById('pl-loja');
     var plTipoTeste=document.getElementById('pl-tipoTeste');
     var plTarefa=document.getElementById('pl-tarefa');
@@ -344,6 +406,7 @@
     var plTabelaWrap=document.getElementById('pl-tabela-wrap');
     var plTbody=document.getElementById('pl-tbody');
 
+    // Elements - Gerenciar
     var geLoja=document.getElementById('ge-loja');
     var geNome=document.getElementById('ge-nome');
     var geAmb=document.getElementById('ge-amb');
@@ -359,6 +422,13 @@
     var scStatus=document.getElementById('sc-status');
     var geCenariosBody=document.getElementById('ge-cenarios-body');
 
+    // Elements - Análise
+    var daLoja=document.getElementById('da-loja');
+    var daManual=document.getElementById('da-manual');
+    var daAuto=document.getElementById('da-auto');
+    var daTotal=document.getElementById('da-total');
+    var daPorLoja=document.getElementById('da-por-loja');
+
     function findLojaById(id){ for(var i=0;i<db.lojas.length;i++){ if(db.lojas[i].id===id) return db.lojas[i]; } return null; }
 
     function refreshLojasSelect(){
@@ -369,11 +439,14 @@
         if(db.lojas.length && !findLojaById(cur)){ sel.value=db.lojas[0]?db.lojas[0].id:''; }
         else { sel.value=cur || (db.lojas[0]?db.lojas[0].id:''); }
       }
+      // Analise select inclui "Todas as lojas"
+      refreshAnaliseLojaSelect();
       refreshGerenciarFields(); refreshCategoriasCheckboxes(); renderTabelaPlanejamento();
       refreshCategoriaSelectForScenario(); renderCenariosList();
+      renderAnalise();
     }
 
-    // CRUD loja
+    // ------------------ CRUD loja (Gerenciar) ------------------
     document.getElementById('btnNovaLoja').addEventListener('click', function(){ geNome.value=''; geAmb.value=''; geUrl.value=''; geLoja.value=''; geNome.focus(); });
     document.getElementById('btnSalvarLoja').addEventListener('click', function(){
       var nome=geNome.value.replace(/^\s+|\s+$/g,''); if(!nome){ alert('Informe o nome da loja.'); return; }
@@ -397,13 +470,14 @@
       var novosC=[]; for (var j=0;j<db.cenarios.length;j++){ if(db.cenarios[j].lojaId!==id) novosC.push(db.cenarios[j]); } db.cenarios=novosC;
       saveDB(); refreshLojasSelect(); showToast('Loja excluída');
     });
-    geLoja.addEventListener('change', function(){ refreshGerenciarFields(); refreshCategoriasList(); refreshCategoriaSelectForScenario(); renderCenariosList(); });
+    geLoja.addEventListener('change', function(){ refreshGerenciarFields(); refreshCategoriasList(); refreshCategoriaSelectForScenario(); renderCenariosList(); renderAnalise(); });
 
     function refreshGerenciarFields(){
       var loja=findLojaById(geLoja.value); geNome.value=loja?loja.nome:''; geAmb.value=loja?loja.ambiente:''; geUrl.value=loja?loja.url:''; refreshCategoriasList();
     }
 
-    // Categorias
+    // ------------------ Categorias (Gerenciar) ------------------
+    var geCatLista=document.getElementById('ge-cat-lista');
     function refreshCategoriasList(){
       geCatLista.innerHTML=''; var lojaId=geLoja.value; var list=db.categorias[lojaId]||[]; list.sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}); });
       for (var i=0;i<list.length;i++){
@@ -416,7 +490,7 @@
             if(!confirm('Remover categoria?')) return;
             var arr=db.categorias[lojaId]||[]; var novo=[]; for (var k=0;k<arr.length;k++){ if(arr[k].id!==cat.id) novo.push(arr[k]); } db.categorias[lojaId]=novo;
             var novosC=[]; for (var m=0;m<db.cenarios.length;m++){ var cc=db.cenarios[m]; if(!(cc.lojaId===lojaId && cc.categoriaId===cat.id)) novosC.push(cc); } db.cenarios=novosC;
-            saveDB(); refreshCategoriasList(); refreshCategoriasCheckboxes(); refreshCategoriaSelectForScenario(); renderCenariosList(); showToast('Categoria removida');
+            saveDB(); refreshCategoriasList(); refreshCategoriasCheckboxes(); refreshCategoriaSelectForScenario(); renderCenariosList(); renderAnalise(); showToast('Categoria removida');
           });
         })(list[i]);
       }
@@ -425,7 +499,7 @@
       var lojaId=geLoja.value; if(!lojaId){ alert('Selecione a loja.'); return; }
       var nome=document.getElementById('ge-cat-nome').value.replace(/^\s+|\s+$/g,''); if(!nome){ alert('Informe o nome da categoria.'); return; }
       var list=db.categorias[lojaId]=db.categorias[lojaId]||[]; for (var i=0;i<list.length;i++){ if(normalize(list[i].nome)===normalize(nome)){ alert('Categoria já existe nesta loja.'); return; } }
-      var id=uid(); list.push({id:id, nome:nome}); saveDB(); document.getElementById('ge-cat-nome').value=''; refreshCategoriasList(); refreshCategoriasCheckboxes(); refreshCategoriaSelectForScenario(); showToast('Categoria adicionada');
+      var id=uid(); list.push({id:id, nome:nome}); saveDB(); document.getElementById('ge-cat-nome').value=''; refreshCategoriasList(); refreshCategoriasCheckboxes(); refreshCategoriaSelectForScenario(); renderAnalise(); showToast('Categoria adicionada');
     });
 
     function refreshCategoriaSelectForScenario(){
@@ -433,13 +507,13 @@
       for (var i=0;i<list.length;i++){ var opt=document.createElement('option'); opt.value=list[i].id; opt.textContent=list[i].nome; scCategoria.appendChild(opt); }
     }
 
-    // Criar cenário manual
+    // ------------------ Criar cenário manual (Gerenciar) ------------------
     document.getElementById('btnAddCenario').addEventListener('click', function(){
       var lojaId=geLoja.value; if(!lojaId){ alert('Selecione a loja.'); return; }
       var categoriaId=scCategoria.value; if(!categoriaId){ alert('Crie ao menos uma categoria antes.'); return; }
       var exec=scExecucao.value; var nome=scNome.value.replace(/^\s+|\s+$/g,''); if(!nome){ alert('Informe o nome do teste.'); return; }
       db.cenarios.push({ id: uid(), lojaId: lojaId, categoriaId: categoriaId, execucao: exec, nomeTeste: nome, evidDesktop: scED.value||'', evidMobile: scEM.value||'', status: scStatus.value||'' });
-      saveDB(); renderCenariosList(); renderTabelaPlanejamento(); showToast('Cenário adicionado');
+      saveDB(); renderCenariosList(); renderTabelaPlanejamento(); renderAnalise(); showToast('Cenário adicionado');
       scNome.value=''; scED.value=''; scEM.value=''; scStatus.value='';
     });
 
@@ -463,14 +537,14 @@
           var tdA=document.createElement('td'); var rm=document.createElement('button'); rm.className='btn'; rm.style.background='#fee2e2'; rm.style.color='#991b1b'; rm.textContent='remover'; tdA.appendChild(rm); tr.appendChild(tdA);
           rm.addEventListener('click', function(){
             if(!confirm('Excluir este cenário?')) return;
-            var novo=[]; for (var i=0;i<db.cenarios.length;i++){ if(db.cenarios[i].id!==row.id) novo.push(db.cenarios[i]); } db.cenarios=novo; saveDB(); renderCenariosList(); renderTabelaPlanejamento(); showToast('Cenário removido');
+            var novo=[]; for (var i=0;i<db.cenarios.length;i++){ if(db.cenarios[i].id!==row.id) novo.push(db.cenarios[i]); } db.cenarios=novo; saveDB(); renderCenariosList(); renderTabelaPlanejamento(); renderAnalise(); showToast('Cenário removido');
           });
           geCenariosBody.appendChild(tr);
         })(rows[r]);
       }
     }
 
-    // Planejamento: categorias checkboxes & table
+    // ------------------ Planejamento ------------------
     function refreshCategoriasCheckboxes(){
       plCategorias.innerHTML=''; var lojaId=plLoja.value; var list=db.categorias[lojaId]||[]; list.sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}); });
       for (var i=0;i<list.length;i++){
@@ -515,31 +589,87 @@
       plTabelaWrap.classList.remove('hidden');
     }
 
-    // Export/Markdown handlers (reutiliza funções da versão anterior)
+    // Export/Markdown handlers
     function getDisplayedRows(){ var lojaId=plLoja.value; var selectedCats=getSelectedCategoriaIds(); var listCats=db.categorias[lojaId]||[]; var catsById={}; for (var i=0;i<listCats.length;i++){ catsById[listCats[i].id]=listCats[i]; } var out=[]; for (var j=0;j<db.cenarios.length;j++){ var c=db.cenarios[j]; var inSel=false; if(c.lojaId===lojaId){ for (var k=0;k<selectedCats.length;k++){ if(c.categoriaId===selectedCats[k]){ inSel=true; break; } } } if(inSel){ out.push({ categoria: catsById[c.categoriaId]?catsById[c.categoriaId].nome:'', execucao: c.execucao, nomeTeste: c.nomeTeste||'', evidDesktop: (typeof c._ed!=='undefined'?c._ed:(c.evidDesktop||'')), evidMobile: (typeof c._em!=='undefined'?c._em:(c.evidMobile||'')), status: (typeof c._st!=='undefined'?c._st:(c.status||'')) }); } } return out; }
     function exportCSV(){ var rows=getDisplayedRows(); if(rows.length===0){ alert('Nenhum cenário para exportar.'); return; } var header=['categoria','execucao','nomeTeste','evidDesktop','evidMobile','status']; var sep=';'; function esc(v){ var s=(v==null?'':String(v)).replace(/\r?\n/g,' '); if(s.indexOf(sep)>=0 || s.indexOf('"')>=0){ return '"'+s.replace(/"/g,'""')+'"'; } return s; } var out=[header.join(sep)]; for(var i=0;i<rows.length;i++){ var r=rows[i], arr=[]; for(var h=0;h<header.length;h++){ arr.push(esc(r[header[h]])); } out.push(arr.join(sep)); } var blob=new Blob(['\ufeff'+out.join('\r\n')],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='cenarios.csv'; a.click(); }
     function exportXLSX(){ var rows=getDisplayedRows(); if(rows.length===0){ alert('Nenhum cenário para exportar.'); return; } var wsData=[['Categoria','Execução','Nome do teste','Evidência DESKTOP','Evidência MOBILE','Status']]; for(var i=0;i<rows.length;i++){ var r=rows[i]; wsData.push([r.categoria,r.execucao,r.nomeTeste,r.evidDesktop,r.evidMobile,r.status]); } var wb=XLSX.utils.book_new(); var ws=XLSX.utils.aoa_to_sheet(wsData); XLSX.utils.book_append_sheet(wb,ws,'Cenarios'); XLSX.writeFile(wb,'cenarios.xlsx'); }
-    function exportMarkdown(){ var loja=findLojaById(plLoja.value); var lojaNome=loja?loja.nome:''; var tipoTeste=(plTipoTeste.value||'').replace(/^\s+|\s+$/g,''); var tarefa=(plTarefa.value||'').replace(/^\s+|\s+$/g,''); var rows=getDisplayedRows(); if(rows.length===0){ alert('Nenhum cenário para exportar.'); return; } var man=0, aut=0; for(var i=0;i<rows.length;i++){ if(rows[i].execucao==='Manual') man++; else if(rows[i].execucao==='Automatizado') aut++; } man*=2; aut*=2; var total=man+aut; function esc(s){ return String(s==null?'':s).replace(/\|/g,'\\|'); } var headerInfo='**Nome da loja:** '+esc(lojaNome)+'\n'+'**Tipo de teste:** '+esc(tipoTeste)+'\n'+'**Tarefa:** '+esc(tarefa)+'\n'+'**Qtd. manuais:** '+man+'\n'+'**Qtd. automatizados:** '+aut+'\n'+'**Total de testes:** '+total; var head='| Categoria | Execução | Nome do teste | Evidência DESKTOP | Evidência MOBILE | Status |\n|---|---|---|---|---|---|'; var body=[]; for(var j=0;j<rows.length;j++){ var r=rows[j]; body.push('| '+esc(r.categoria)+' | '+esc(r.execucao)+' | '+esc(r.nomeTeste)+' | '+esc(r.evidDesktop)+' | '+esc(r.evidMobile)+' | '+esc(r.status)+' |'); } var md=headerInfo+'\n\n'+head+'\n'+body.join('\n'); var dlg=document.getElementById('mdModal'); var out=document.getElementById('mdOutput'); out.textContent=md; if(dlg.showModal){ dlg.showModal(); } }
+    function exportMarkdown(){ var loja=findLojaById(plLoja.value); var lojaNome=loja?loja.nome:''; var tipoTeste=(plTipoTeste.value||'').replace(/^\s+|\s+$/g,''); var tarefa=(plTarefa.value||'').replace(/^\s+|\s+$/g,''); var rows=getDisplayedRows(); if(rows.length===0){ alert('Nenhum cenário para exportar.'); return; } var man=0, aut=0; for(var i=0;i<rows.length;i++){ if(rows[i].execucao==='Manual') man++; else if(rows[i].execucao==='Automatizado') aut++; } man*=2; aut*=2; var total=man+aut; function esc(s){ return String(s==null?'':s).replace(/\\|/g,'\\\\|'); } var headerInfo='**Nome da loja:** '+esc(lojaNome)+'\\n'+'**Tipo de teste:** '+esc(tipoTeste)+'\\n'+'**Tarefa:** '+esc(tarefa)+'\\n'+'**Qtd. manuais:** '+man+'\\n'+'**Qtd. automatizados:** '+aut+'\\n'+'**Total de testes:** '+total; var head='| Categoria | Execução | Nome do teste | Evidência DESKTOP | Evidência MOBILE | Status |\\n|---|---|---|---|---|---|'; var body=[]; for(var j=0;j<rows.length;j++){ var r=rows[j]; body.push('| '+esc(r.categoria)+' | '+esc(r.execucao)+' | '+esc(r.nomeTeste)+' | '+esc(r.evidDesktop)+' | '+esc(r.evidMobile)+' | '+esc(r.status)+' |'); } var md=headerInfo+'\\n\\n'+head+'\\n'+body.join('\\n'); var dlg=document.getElementById('mdModal'); var out=document.getElementById('mdOutput'); out.textContent=md; if(dlg.showModal){ dlg.showModal(); } }
     document.getElementById('btnExportCSV').addEventListener('click', exportCSV); document.getElementById('btnExportXLSX').addEventListener('click', exportXLSX); document.getElementById('btnExportMD').addEventListener('click', exportMarkdown); document.getElementById('btnCloseMD').addEventListener('click', function(){ var dlg=document.getElementById('mdModal'); if(dlg && dlg.close) dlg.close(); }); document.getElementById('btnCopyMD').addEventListener('click', function(){ var md=document.getElementById('mdOutput').textContent; if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(md).then(function(){ showToast('Markdown copiado'); }); } });
 
-    // Modelo CSV / Preview / Import idem versão anterior
-    document.getElementById('btnModeloCSV').addEventListener('click', function(){ var header='categoria;execucao;nomeTeste;evidDesktop;evidMobile;status\r\n'; var example='PDP;Manual;Abrir PDP e validar preço;;;\r\n'; var blob=new Blob(['\ufeff'+header+example],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='modelo_loja.csv'; a.click(); });
+    // Modelo CSV / Preview / Import
+    document.getElementById('btnModeloCSV').addEventListener('click', function(){ var header='categoria;execucao;nomeTeste;evidDesktop;evidMobile;status\\r\\n'; var example='PDP;Manual;Abrir PDP e validar preço;;;\\r\\n'; var blob=new Blob(['\\ufeff'+header+example],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='modelo_loja.csv'; a.click(); });
     var _csvRows=null;
-    document.getElementById('btnPreviewCSV').addEventListener('click', function(){ var file=document.getElementById('csvFile').files && document.getElementById('csvFile').files[0]; if(!file){ alert('Escolha um arquivo CSV.'); return; } var reader=new FileReader(); reader.onload=function(evt){ var text=String(evt.target.result||''); var lines=text.split(/\r?\n/).filter(function(v){return v;}); if(lines.length===0){ alert('CSV vazio.'); return; } var header=lines[0].split(';'); for(var h=0;h<header.length;h++){ header[h]=header[h].replace(/^\s+|\s+$/g,''); } var body=[]; for(var i=1;i<lines.length;i++){ var cols=lines[i].split(';'); var obj={}; for(var j=0;j<header.length;j++){ obj[header[j]]=(cols[j]||'').replace(/^\s+|\s+$/g,''); } body.push(obj); } _csvRows={header:header, body:body}; var headTr=document.getElementById('csvPrevHead'); var bodyT=document.getElementById('csvPrevBody'); var htmlH=[]; for(var a=0;a<header.length;a++){ htmlH.push('<th>'+header[a]+'</th>'); } headTr.innerHTML=htmlH.join(''); var htmlB=[]; var preview=body.slice(0,50); for(var b=0;b<preview.length;b++){ var r=preview[b]; var tds=[]; for(var c=0;c<header.length;c++){ var hh=header[c]; tds.push('<td>'+(r[hh]||'')+'</td>'); } htmlB.push('<tr>'+tds.join('')+'</tr>'); } bodyT.innerHTML=htmlB.join(''); document.getElementById('csvPreviewWrap').classList.remove('hidden'); }; reader.readAsText(file); });
-    document.getElementById('btnImportCSV').addEventListener('click', function(){ var lojaId=geLoja.value; if(!lojaId){ alert('Selecione a loja para importar.'); return; } if(!_csvRows){ alert('Faça a pré-visualização primeiro.'); return; } var header=_csvRows.header; var body=_csvRows.body; var required=['categoria','execucao','nomeTeste','evidDesktop','evidMobile','status']; var missing=[]; for(var i=0;i<required.length;i++){ if(header.indexOf(required[i])<0) missing.push(required[i]); } if(missing.length){ alert('Cabeçalhos ausentes: '+missing.join(', ')); return; } var list=db.categorias[lojaId]=db.categorias[lojaId]||[]; var catByNorm={}; for(var i=0;i<list.length;i++){ catByNorm[normalize(list[i].nome)]=list[i]; } var created=0, imported=0; for(var r=0;r<body.length;r++){ var row=body[r]; if(!row.categoria||!row.execucao||!row.nomeTeste) continue; var norm=normalize(row.categoria); var cat=catByNorm[norm]; if(!cat){ cat={ id:uid(), nome: row.categoria.replace(/^\s+|\s+$/g,'') }; list.push(cat); catByNorm[norm]=cat; created++; } var execVal=(row.execucao||'').replace(/^\s+|\s+$/g,''); if(execVal!=='Manual' && execVal!=='Automatizado') continue; db.cenarios.push({ id:uid(), lojaId: lojaId, categoriaId: cat.id, execucao: execVal, nomeTeste: row.nomeTeste||'', evidDesktop: row.evidDesktop||'', evidMobile: row.evidMobile||'', status: row.status||'' }); imported++; } saveDB(); refreshCategoriasList(); refreshCategoriaSelectForScenario(); renderCenariosList(); refreshCategoriasCheckboxes(); renderTabelaPlanejamento(); showToast('Importado: '+imported+', Categorias novas: '+created); });
+    document.getElementById('btnPreviewCSV').addEventListener('click', function(){ var file=document.getElementById('csvFile').files && document.getElementById('csvFile').files[0]; if(!file){ alert('Escolha um arquivo CSV.'); return; } var reader=new FileReader(); reader.onload=function(evt){ var text=String(evt.target.result||''); var lines=text.split(/\\r?\\n/).filter(function(v){return v;}); if(lines.length===0){ alert('CSV vazio.'); return; } var header=lines[0].split(';'); for(var h=0;h<header.length;h++){ header[h]=header[h].replace(/^\\s+|\\s+$/g,''); } var body=[]; for(var i=1;i<lines.length;i++){ var cols=lines[i].split(';'); var obj={}; for(var j=0;j<header.length;j++){ obj[header[j]]=(cols[j]||'').replace(/^\\s+|\\s+$/g,''); } body.push(obj); } _csvRows={header:header, body:body}; var headTr=document.getElementById('csvPrevHead'); var bodyT=document.getElementById('csvPrevBody'); var htmlH=[]; for(var a=0;a<header.length;a++){ htmlH.push('<th>'+header[a]+'</th>'); } headTr.innerHTML=htmlH.join(''); var htmlB=[]; var preview=body.slice(0,50); for(var b=0;b<preview.length;b++){ var r=preview[b]; var tds=[]; for(var c=0;c<header.length;c++){ var hh=header[c]; tds.push('<td>'+(r[hh]||'')+'</td>'); } htmlB.push('<tr>'+tds.join('')+'</tr>'); } bodyT.innerHTML=htmlB.join(''); document.getElementById('csvPreviewWrap').classList.remove('hidden'); }; reader.readAsText(file); });
+    document.getElementById('btnImportCSV').addEventListener('click', function(){ var lojaId=geLoja.value; if(!lojaId){ alert('Selecione a loja para importar.'); return; } if(!_csvRows){ alert('Faça a pré-visualização primeiro.'); return; } var header=_csvRows.header; var body=_csvRows.body; var required=['categoria','execucao','nomeTeste','evidDesktop','evidMobile','status']; var missing=[]; for(var i=0;i<required.length;i++){ if(header.indexOf(required[i])<0) missing.push(required[i]); } if(missing.length){ alert('Cabeçalhos ausentes: '+missing.join(', ')); return; } var list=db.categorias[lojaId]=db.categorias[lojaId]||[]; var catByNorm={}; for(var i=0;i<list.length;i++){ catByNorm[normalize(list[i].nome)]=list[i]; } var created=0, imported=0; for(var r=0;r<body.length;r++){ var row=body[r]; if(!row.categoria||!row.execucao||!row.nomeTeste) continue; var norm=normalize(row.categoria); var cat=catByNorm[norm]; if(!cat){ cat={ id:uid(), nome: row.categoria.replace(/^\\s+|\\s+$/g,'') }; list.push(cat); catByNorm[norm]=cat; created++; } var execVal=(row.execucao||'').replace(/^\\s+|\\s+$/g,''); if(execVal!=='Manual' && execVal!=='Automatizado') continue; db.cenarios.push({ id:uid(), lojaId: lojaId, categoriaId: cat.id, execucao: execVal, nomeTeste: row.nomeTeste||'', evidDesktop: row.evidDesktop||'', evidMobile: row.evidMobile||'', status: row.status||'' }); imported++; } saveDB(); refreshCategoriasList(); refreshCategoriaSelectForScenario(); renderCenariosList(); refreshCategoriasCheckboxes(); renderTabelaPlanejamento(); renderAnalise(); showToast('Importado: '+imported+', Categorias novas: '+created); });
 
     // Export JS
-    document.getElementById('btnExportJS').addEventListener('click', function(){ var payload={ lojas:db.lojas, categorias:db.categorias, cenarios:db.cenarios.map(function(c){ return { id:c.id, lojaId:c.lojaId, categoriaId:c.categoriaId, execucao:c.execucao, nomeTeste:c.nomeTeste||'', evidDesktop:c.evidDesktop||'', evidMobile:c.evidMobile||'', status:c.status||'' }; }) }; var content='export const db = '+JSON.stringify(payload,null,2)+';\n'; var blob=new Blob([content],{type:'text/javascript;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='custom-data.js'; a.click(); showToast('Arquivo gerado: custom-data.js — substitua por data.js na sua estrutura'); });
+    document.getElementById('btnExportJS').addEventListener('click', function(){ var payload={ lojas:db.lojas, categorias:db.categorias, cenarios:db.cenarios.map(function(c){ return { id:c.id, lojaId:c.lojaId, categoriaId:c.categoriaId, execucao:c.execucao, nomeTeste:c.nomeTeste||'', evidDesktop:c.evidDesktop||'', evidMobile:c.evidMobile||'', status:c.status||'' }; }) }; var content='export const db = '+JSON.stringify(payload,null,2)+';\\n'; var blob=new Blob([content],{type:'text/javascript;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='custom-data.js'; a.click(); showToast('Arquivo gerado: custom-data.js — substitua por data.js na sua estrutura'); });
 
     // Reset demo
     document.getElementById('btnResetDemo').addEventListener('click', function(){
-  if(!confirm('Restaurar dados de exemplo? Isso substituirá o estado atual (localStorage).')) return;
-  try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
-  db = deepClone(initialDBFallback); // sempre volta para os dados embutidos de exemplo
-  saveDB();
-  refreshLojasSelect();
-  showToast('Dados de EXEMPLO restaurados');
-});
+      if(!confirm('Restaurar dados de exemplo? Isso substituirá o estado atual (localStorage).')) return;
+      try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+      db = deepClone(initialDBFallback); // sempre volta para os dados embutidos de exemplo
+      saveDB();
+      refreshLojasSelect();
+      showToast('Dados de EXEMPLO restaurados');
+    });
+
+    // ------------------ Análise / Dashboard ------------------
+    function refreshAnaliseLojaSelect(){
+      var cur=daLoja.value;
+      daLoja.innerHTML='';
+      var optAll=document.createElement('option'); optAll.value='__ALL__'; optAll.textContent='Todas as lojas'; daLoja.appendChild(optAll);
+      for (var i=0;i<db.lojas.length;i++){ var l=db.lojas[i]; var opt=document.createElement('option'); opt.value=l.id; opt.textContent=l.nome; daLoja.appendChild(opt); }
+      if(cur && (cur==='__ALL__' || findLojaById(cur))) daLoja.value=cur; else daLoja.value='__ALL__';
+    }
+
+    function computeCounts(lojaId){
+      var man=0, aut=0;
+      for (var i=0;i<db.cenarios.length;i++){
+        var c=db.cenarios[i];
+        if(lojaId && lojaId!=='__ALL__' && c.lojaId!==lojaId) continue;
+        if(c.execucao==='Manual') man++;
+        else if(c.execucao==='Automatizado') aut++;
+      }
+      // Regra: cada cenário vale por dois (Desktop + Mobile)
+      return { man: man*2, aut: aut*2, total: (man+aut)*2 };
+    }
+
+    function renderAnalise(){
+      // Top cards for selected loja or todas
+      var lojaId=daLoja.value || '__ALL__';
+      var c=computeCounts(lojaId);
+      daManual.textContent=String(c.man);
+      daAuto.textContent=String(c.aut);
+      daTotal.textContent=String(c.total);
+
+      // Tabela por loja (sempre visão geral por loja, independente do seletor)
+      daPorLoja.innerHTML='';
+      // Ordena por nome da loja
+      var lojasSorted = db.lojas.slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR',{sensitivity:'base'}); });
+      var grand = { man:0, aut:0, total:0 };
+      for (var i=0;i<lojasSorted.length;i++){
+        var l=lojasSorted[i];
+        var cc=computeCounts(l.id);
+        grand.man += cc.man; grand.aut += cc.aut; grand.total += cc.total;
+        var tr=document.createElement('tr');
+        var td1=document.createElement('td'); td1.textContent=l.nome; tr.appendChild(td1);
+        var td2=document.createElement('td'); td2.textContent=String(cc.man); tr.appendChild(td2);
+        var td3=document.createElement('td'); td3.textContent=String(cc.aut); tr.appendChild(td3);
+        var td4=document.createElement('td'); td4.textContent=String(cc.total); tr.appendChild(td4);
+        daPorLoja.appendChild(tr);
+      }
+      // Linha total geral
+      var trG=document.createElement('tr');
+      var tdG1=document.createElement('td'); tdG1.textContent='TOTAL (todas)'; tdG1.style.fontWeight='700'; trG.appendChild(tdG1);
+      var tdG2=document.createElement('td'); tdG2.textContent=String(grand.man); tdG2.style.fontWeight='700'; trG.appendChild(tdG2);
+      var tdG3=document.createElement('td'); tdG3.textContent=String(grand.aut); tdG3.style.fontWeight='700'; trG.appendChild(tdG3);
+      var tdG4=document.createElement('td'); tdG4.textContent=String(grand.total); tdG4.style.fontWeight='700'; trG.appendChild(tdG4);
+      daPorLoja.appendChild(trG);
+    }
+
+    daLoja.addEventListener('change', renderAnalise);
 
     // Init
     refreshLojasSelect();
