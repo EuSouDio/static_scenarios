@@ -87,6 +87,9 @@ export const db = {
 };
 ```
 
+## Aba Analise
+- São apresentadas as quantidades de cada loja delimitada por testes manuais, automatizados e totais, podendo ser selecionado todas as lojas como loja especifica.
+
 ## Dúvidas frequentes
 - **“Exportar JS” não atualizou minha aplicação.**  
   O navegador faz download de `custom-data.js`. Para refletir no app, **renomeie** para `data.js` e **substitua** o arquivo do projeto.
